@@ -53,18 +53,17 @@ func init() {
 func joinConnect4(c socketio.Socket, uuid string) string {
 	resp := response{}
 	connect4WaitingRoom.m.Lock()
+	defer connect4WaitingRoom.m.Unlock()
 	connectedUser := connect4WaitingRoom.uuid
 
 	if connectedUser == "" {
-		connect4WaitingRoom.uuid = uuid
-		connect4WaitingRoom.m.Unlock()
-		resp.Status = http.StatusAccepted
-		c.Leave(waitingRoom)
-		c.BroadcastTo(waitingRoom, "eventConnect4Waiting", nil)
+		return saveInConnect4WaitingRoom(c, resp, uuid)
+	}
+	if connectedUser == uuid {
+		resp.Status = http.StatusForbidden
 		return writeResponse(resp)
 	}
 	connect4WaitingRoom.uuid = ""
-	connect4WaitingRoom.m.Unlock()
 
 	// Create game with the 2 users
 	gameUUID, errU := generateUUID()
@@ -104,9 +103,22 @@ func joinConnect4(c socketio.Socket, uuid string) string {
 
 	respString := writeResponse(resp)
 	// send notif to players
-	userMap[newGame.P1].so.Emit(eventPlay, respString)
-	userMap[newGame.P2].so.Emit(eventPlay, respString)
+	user1, _ := readUserMap(newGame.P1)
+	user2, b := readUserMap(newGame.P2)
+	if !b {
+		return saveInConnect4WaitingRoom(c, resp, uuid)
+	}
+	user1.so.Emit(eventPlay, respString)
+	user2.so.Emit(eventPlay, respString)
 	return respString
+}
+
+func saveInConnect4WaitingRoom(c socketio.Socket, resp response, uuid string) string {
+	connect4WaitingRoom.uuid = uuid
+	resp.Status = http.StatusAccepted
+	c.Leave(waitingRoom)
+	c.BroadcastTo(waitingRoom, "eventConnect4Waiting", nil)
+	return writeResponse(resp)
 }
 
 type playConnect4Request struct {
@@ -171,21 +183,19 @@ func playConnect4(data string) string {
 			hasWin = diagLeftRightCheck(g.Grid, r.Col, currentPlayLine)
 			if !hasWin {
 				hasWin = diagRightLeftCheck(g.Grid, r.Col, currentPlayLine)
-				if !hasWin {
-					// next player to play
-					if g.Turn == g.P1 {
-						g.Turn = g.P2
-					} else {
-						g.Turn = g.P1
-					}
-				}
 			}
 		}
 	}
 
+	// next player to play
+	if g.Turn == g.P1 {
+		g.Turn = g.P2
+	} else {
+		g.Turn = g.P1
+	}
+
 	// check victory
 	if hasWin {
-		g.Turn = "done"
 		g.Winner = r.UserUUID
 	}
 
@@ -200,11 +210,28 @@ func playConnect4(data string) string {
 	resp.GameUUID = g.Uuid
 
 	respString := writeResponse(resp)
-	userMap[g.P1].so.Emit(eventPlay, respString)
-	userMap[g.P2].so.Emit(eventPlay, respString)
+
+	p1, b1 := readUserMap(g.P1)
+	p2, b2 := readUserMap(g.P2)
+	if !b1 && b2 {
+		fmt.Println("FORFAIT")
+		g.Winner = p2.uuid
+		resp.Data = g
+		p2.so.Emit(eventPlay, respString)
+		respString = writeResponse(resp)
+		return respString
+	} else if b1 && !b2 {
+		fmt.Println("FORFAIT2")
+		g.Winner = p1.uuid
+		resp.Data = g
+		p1.so.Emit(eventPlay, respString)
+		respString = writeResponse(resp)
+		return respString
+	}
+	p1.so.Emit(eventPlay, respString)
+	p2.so.Emit(eventPlay, respString)
 
 	// send game updated
-
 	return respString
 }
 

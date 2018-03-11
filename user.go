@@ -17,6 +17,19 @@ type User struct {
 	heartbeat time.Time
 }
 
+func readUserMap(k string) (User, bool) {
+	userMutex.Lock()
+	defer userMutex.Unlock()
+	u, b := userMap[k]
+	return u, b
+}
+
+func writeUserMap(k string, u User) {
+	userMutex.Lock()
+	defer userMutex.Unlock()
+	userMap[k] = u
+}
+
 func init() {
 	userMap = make(map[string]User)
 	userMutex = &sync.Mutex{}
@@ -28,16 +41,14 @@ func heartbeat(uuid string) string {
 		resp.Status = http.StatusUnauthorized
 		return writeResponse(resp)
 	}
-	u, ok := userMap[uuid]
+	u, ok := readUserMap(uuid)
 	if !ok {
 		resp.Status = http.StatusUnauthorized
 		return writeResponse(resp)
 	}
 	u.heartbeat = time.Now()
 
-	userMutex.Lock()
-	userMap[u.uuid] = u
-	userMutex.Unlock()
+	writeUserMap(u.uuid, u)
 
 	resp.Status = http.StatusOK
 	resp.Data = uuid
@@ -60,9 +71,8 @@ func connect(so socketio.Socket) string {
 		heartbeat: time.Now(),
 		so:        so,
 	}
-	userMutex.Lock()
-	userMap[u.uuid] = u
-	userMutex.Unlock()
+
+	writeUserMap(u.uuid, u)
 
 	resp.Data = u.uuid
 	resp.Status = http.StatusOK
