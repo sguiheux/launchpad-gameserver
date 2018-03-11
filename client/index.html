@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+
+<script src="/socketio.js"></script>
+<script>
+    var socket = io('http://localhost:5000');
+    var uuid = '';
+    var gameuuid = '';
+    socket.on('connect', function (resp) {
+        if (resp) {
+            msg = JSON.parse(resp);
+            if (msg) {
+                uuid = msg.data;
+                console.log('connected');
+            }
+        }
+    });
+    socket.on('play', function (resp) {
+        console.log(resp);
+        if (resp) {
+            var msg = JSON.parse(resp);
+            if (msg) {
+                gameuuid = msg.data.uuid;
+            }
+        }
+    });
+
+    function joinConnect4() {
+        socket.emit('join.connect4', uuid, function(resp){
+            if (resp) {
+                msg = JSON.parse(resp);
+                if (msg) {
+                    if (msg.status === 202) {
+                        console.log('waiting player')
+                    }
+                }
+            }
+        });
+    }
+
+    function playConnect4(col) {
+        console.log(col);
+        var msg = { "game_uuid": gameuuid, "user_uuid": uuid, "col": col}
+        socket.emit('play.connect4', JSON.stringify(msg), function () {
+
+        });
+    }
+</script>
+<button type="button" onclick="joinConnect4()">JoinConnect4</button>
+<br/>
+<button type="button" onclick="playConnect4(0)">0</button>
+<button type="button" onclick="playConnect4(1)">1</button>
+<button type="button" onclick="playConnect4(2)">2</button>
+<button type="button" onclick="playConnect4(3)">3</button>
+<button type="button" onclick="playConnect4(4)">4</button>
+<button type="button" onclick="playConnect4(5)">5</button>
+<button type="button" onclick="playConnect4(6)">6</button>
+<button type="button" onclick="playConnect4(7)">7</button>
+</body>
+</html>
