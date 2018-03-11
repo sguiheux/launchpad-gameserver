@@ -39,6 +39,19 @@ type games struct {
 	games map[string]connect4Game
 }
 
+func (g games) readGames(k string) (connect4Game, bool) {
+	g.m.Lock()
+	defer g.m.Unlock()
+	c, b := g.games[k]
+	return c, b
+}
+
+func (g games) writeGames(k string, game connect4Game) {
+	g.m.Lock()
+	defer g.m.Unlock()
+	g.games[k] = game
+}
+
 func init() {
 	connect4WaitingRoom = connect4Room{
 		uuid: "",
@@ -92,9 +105,7 @@ func joinConnect4(c socketio.Socket, uuid string) string {
 		newGame.Turn = newGame.P2
 	}
 
-	currentGames.m.Lock()
-	currentGames.games[gameUUID] = newGame
-	currentGames.m.Unlock()
+	currentGames.writeGames(gameUUID, newGame)
 
 	resp.Status = http.StatusCreated
 	resp.Data = newGame
@@ -138,9 +149,7 @@ func playConnect4(data string) string {
 	}
 
 	// get game
-	var g connect4Game
-	var b bool
-	g, b = currentGames.games[r.GameUUID]
+	g, b := currentGames.readGames(r.GameUUID)
 	if !b {
 		resp.Status = http.StatusNotFound
 		resp.Error = "playConnect4> Game not found"
@@ -202,9 +211,7 @@ func playConnect4(data string) string {
 	resp.Data = g
 
 	// Update game
-	currentGames.m.Lock()
-	currentGames.games[r.GameUUID] = g
-	currentGames.m.Unlock()
+	currentGames.writeGames(r.GameUUID, g)
 
 	resp.Game = connect4Name
 	resp.GameUUID = g.Uuid
