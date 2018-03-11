@@ -21,7 +21,6 @@
         }
     });
     socket.on('play', function (resp) {
-        console.log(resp);
         if (resp) {
             var msg = JSON.parse(resp);
             if (msg) {
@@ -30,8 +29,8 @@
         }
     });
 
-    function joinConnect4() {
-        socket.emit('join.connect4', uuid, function(resp){
+    function join(game) {
+        socket.emit('join', JSON.stringify({ "game": game, "uuid": uuid}), function(resp){
             if (resp) {
                 msg = JSON.parse(resp);
                 if (msg) {
@@ -44,14 +43,13 @@
     }
 
     function playConnect4(col) {
-        console.log(col);
         var msg = { "game_uuid": gameuuid, "user_uuid": uuid, "col": col}
         socket.emit('play.connect4', JSON.stringify(msg), function () {
 
         });
     }
 </script>
-<button type="button" onclick="joinConnect4()">JoinConnect4</button>
+<button type="button" onclick="join('connect4')">JoinConnect4</button>
 <br/>
 <button type="button" onclick="playConnect4(0)">0</button>
 <button type="button" onclick="playConnect4(1)">1</button>

@@ -13,9 +13,8 @@ import (
 var connect4WaitingRoom connect4Room
 
 const (
-	name = "connect4"
+	connect4Name = "connect4"
 )
-
 
 type connect4Room struct {
 	uuid string
@@ -100,7 +99,7 @@ func joinConnect4(c socketio.Socket, uuid string) string {
 
 	resp.Status = http.StatusCreated
 	resp.Data = newGame
-	resp.Game = name
+	resp.Game = connect4Name
 	resp.GameUUID = gameUUID
 
 	respString := writeResponse(resp)
@@ -197,7 +196,7 @@ func playConnect4(data string) string {
 	currentGames.games[r.GameUUID] = g
 	currentGames.m.Unlock()
 
-	resp.Game = name
+	resp.Game = connect4Name
 	resp.GameUUID = g.Uuid
 
 	respString := writeResponse(resp)
